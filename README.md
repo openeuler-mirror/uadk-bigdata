@@ -31,6 +31,8 @@
    - 根据项目文档说明，设置必要的编译环境和参数。
    - 编译UADK源代码，并根据指导文档安装编译后的产物。
 
+   关于 UADK，本项目提供了详细说明，请参看[UADK说明](uadk.md)。
+
 3. **OpenSSL 3.0 及 OpenSSL providers （uadk_provider）安装**
    - 下载并安装OpenSSL 3.0，确保您安装的是与UADK兼容的版本。
    - 安装uadk_provider，这是与UADK紧密集成的OpenSSL硬件加速提供者。
