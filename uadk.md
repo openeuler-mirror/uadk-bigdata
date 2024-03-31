@@ -88,7 +88,15 @@
     git clone https://gitee.com/mirrors_Linaro/uadk.git uadk.git
     git clone https://gitee.com/mirrors_Linaro/uadk_engine.git uadk_engine.git
 
-这两个代码库都使用`master`分支。
+这两个代码库都使用`master`分支。但是，在本实验中，推荐使用：
+
+UADK 使用这个代码库：https://github.com/docularxu/uadk
+
+项目日常持续性开发使用的是这个分支：[working-tag2.6-sm4-ctr](https://github.com/docularxu/uadk/commits/working-tag2.6-sm4-ctr/)
+
+UADK_engine 使用这个代码仓库：https://github.com/docularxu/uadk_engine 或者 https://gitee.com/docularxu/uadk_engine
+
+项目日常持续性开发使用的是这个分支：[working_sm4_ctr](https://github.com/docularxu/uadk_engine/tree/working_sm4_ctr)
 
 ## 编译安装
 
@@ -132,7 +140,7 @@ __注意一__：进入 Container 之后，需要开下各算法`EPOLL` 环境变
 
 __注意二__：需要在进入 Docker container之前，和在 Dcoker container之内，都运行权限命令：
 
-    sudo chmod 666 /dev/hisi_*
+    sudo chmod 777 /dev/hisi_*
 
 否则，会出现类似这样的权限（-13）错误：
 
@@ -140,7 +148,8 @@ __注意二__：需要在进入 Docker container之前，和在 Dcoker container
 
 __注意三__：进入Docker container之内，需要运行：
 
-    sudo /usr/sbin/rsyslogd
+    sudo echo "local5.*  /var/log/uadk.log" >> /etc/rsyslog.conf
+    sudo /usr/sbin/rsyslogd || true
 
 否则，会看到uadk log直接打印到了终端。例如：
 
@@ -180,47 +189,24 @@ UADK 所依赖的环境变量，可以在源文件文档中查看其具体含义
 
 在如上事项准备充分之后就可以运行 uadk_tool 测试 UADK 基本功能了。更多命令，参考：https://docs.openeuler.org/zh/docs/22.03_LTS/docs/UADK/UADK-quick-start.html#%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95
 
+    uadk_tool benchmark --alg sm4-128-ctr --mode sva --opt 0 --sync --pktlen 1024 --seconds 5 --multi 1 --thread 2 --ctxnum 6
 
-```
-$ uadk_tool benchmark --alg sm3 --mode sva --opt 0 --sync --seconds 5 --thread 2 --multi 1 --ctxnum 6
-start UADK benchmark test.
-    [--algname]: sm3
-    [--mode]:    1
-    [--optype]:  0
-    [--syncmode]:0
-    [--pktlen]:  16
-    [--seconds]: 5
-    [--thread]:  2
-    [--multi]:   1
-    [--ctxnum]:  6
-    [--algclass]:digest
-    [--acctype]: 0
-    [--prefetch]:0
-    [--engine]:
-    [--latency]: 0
-    [--init2]:   0
-algname:        length:         perf:           iops:           CPU_rate:
-sm3             16Bytes         3366.1KB/s      215.4Kops       60.40%
-```
-
-```
-$ uadk_tool benchmark --alg sm4-128-ecb --mode sva --opt 0 --sync --pktlen 1024 --seconds 5 --multi 1 --thread 2 --ctxnum 6
-start UADK benchmark test.
-    [--algname]: sm4-128-ecb
-    [--mode]:    1
-    [--optype]:  0
-    [--syncmode]:0
-    [--pktlen]:  1024
-    [--seconds]: 5
-    [--thread]:  2
-    [--multi]:   1
-    [--ctxnum]:  6
-    [--algclass]:cipher
-    [--acctype]: 0
-    [--prefetch]:0
-    [--engine]:
-    [--latency]: 0
-    [--init2]:   0
-algname:        length:         perf:           iops:           CPU_rate:
-sm4-128-ecb     1024Bytes       182343.2KB/s    182.3Kops       50.20%
-```
+    $ uadk_tool benchmark --alg sm4-128-ecb --mode sva --opt 0 --sync --pktlen 1024 --seconds 5 --multi 1 --thread 2 --ctxnum 6
+    start UADK benchmark test.
+        [--algname]: sm4-128-ecb
+        [--mode]:    1
+        [--optype]:  0
+        [--syncmode]:0
+        [--pktlen]:  1024
+        [--seconds]: 5
+        [--thread]:  2
+        [--multi]:   1
+        [--ctxnum]:  6
+        [--algclass]:cipher
+        [--acctype]: 0
+        [--prefetch]:0
+        [--engine]:
+        [--latency]: 0
+        [--init2]:   0
+    algname:        length:         perf:           iops:           CPU_rate:
+    sm4-128-ecb     1024Bytes       182343.2KB/s    182.3Kops       50.20%
