@@ -1,0 +1,82 @@
+From ba27a305372619e2206233809b86bc5ea528b0ed Mon Sep 17 00:00:00 2001
+From: Guodong Xu <guodong.xu@linaro.org>
+Date: Fri, 22 Mar 2024 08:31:15 +0000
+Subject: [OSSL3.0 8/9] SM4Test.java: remove test cases of unsupported
+ algorithms in uadk_provider
+
+As of 22/Mar/2024, uadk_provider supports: sm4-cbc, sm4-ecb, sm4-ctr.
+As of 22/Mar/2024, uadk_provider doesn't support SM4-OFB
+
+There is an known issue for handling paddings. Only sm4/ctr/padding can
+pass the test.
+
+This patch remove unsupported SM4 test cases.
+
+Signed-off-by: Guodong Xu <guodong.xu@linaro.org>
+---
+ .../openeuler/security/openssl/SM4Test.java   | 34 ++++++++++++-------
+ 1 file changed, 21 insertions(+), 13 deletions(-)
+
+diff --git a/jdk/test/org/openeuler/security/openssl/SM4Test.java b/jdk/test/org/openeuler/security/openssl/SM4Test.java
+index 4d83d6867..9004048c9 100644
+--- a/jdk/test/org/openeuler/security/openssl/SM4Test.java
++++ b/jdk/test/org/openeuler/security/openssl/SM4Test.java
+@@ -55,34 +55,42 @@ public class SM4Test {
+     public static void main(String[] args) throws Exception {
+         System.out.println("SM4Test::main().");
+         Security.insertProviderAt(new KAEProvider(), 1);
++        // as of 22/Mar/2024, uadk_provider supports: sm4-cbc, sm4-ecb, sm4-ctr
++        System.out.println("SM4Test::main() Test ====================NOPADDING=================");
++        test(plainText, "SM4/ECB/NOPADDING", new byte[]{103, 36, -31, -53, -109, -12, -71, -79, -54, 106, 10, -3, -35, -22, -122, -67});
++        test(plainText, "SM4/CBC/NOPADDING", new byte[]{86, 69, 47, -115, -63, 54, 35, 24, -2, 114, 113, 102, 82, 20, 69, 59});
+         test(plainText, "SM4/CTR/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
+         test_threads(plainText, "SM4/CTR/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
+         test(plainText, "SM4/CBC/NOPADDING", new byte[]{86, 69, 47, -115, -63, 54, 35, 24, -2, 114, 113, 102, 82, 20, 69, 59});
+-        test(shortPlainText, "SM4/CBC/PKCS5Padding", new byte[]{10, 105, 75, -80, -85, -68, 13, -53, 42, 91, -64, 99, 104, 35, -85, 8});
+-        test(plainText, "SM4/ECB/NOPADDING", new byte[]{103, 36, -31, -53, -109, -12, -71, -79, -54, 106, 10, -3, -35, -22, -122, -67});
+-        test(shortPlainText, "SM4/ECB/PKCS5Padding", new byte[]{-10, 99, -9, 90, 58, -36, -109, 54, -55, -52, 7, -49, 110, -88, 72, 40});
+-        test(plainText, "SM4/OFB/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
+-        test(shortPlainText, "SM4/OFB/PKCS5Padding", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110});
+-
+         testCtrShortIv(plainText, "SM4/CTR/NOPADDING", new byte[]{-13, 73, 40, -36, -64, -67, 75, -72, 90, 58, 73, -4, -36, 115, 126, -48});
+-
+         testByteBuffer(plainText, "SM4/CBC/NOPADDING", new byte[]{86, 69, 47, -115, -63, 54, 35, 24, -2, 114, 113, 102, 82, 20, 69, 59});
+-        testByteBuffer(shortPlainText, "SM4/CBC/PKCS5Padding", new byte[]{10, 105, 75, -80, -85, -68, 13, -53, 42, 91, -64, 99, 104, 35, -85, 8});
+         testByteBuffer(plainText, "SM4/ECB/NOPADDING", new byte[]{103, 36, -31, -53, -109, -12, -71, -79, -54, 106, 10, -3, -35, -22, -122, -67});
+-        testByteBuffer(shortPlainText, "SM4/ECB/PKCS5Padding", new byte[]{-10, 99, -9, 90, 58, -36, -109, 54, -55, -52, 7, -49, 110, -88, 72, 40});
+         testByteBuffer(plainText, "SM4/CTR/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
++
++        System.out.println("SM4Test::main() Test ====================PKCS5PADDING=================");
++        test(shortPlainText, "SM4/ECB/PKCS5Padding", new byte[]{-10, 99, -9, 90, 58, -36, -109, 54, -55, -52, 7, -49, 110, -88, 72, 40});
++        test(shortPlainText, "SM4/CBC/PKCS5Padding", new byte[]{10, 105, 75, -80, -85, -68, 13, -53, 42, 91, -64, 99, 104, 35, -85, 8});
++        testByteBuffer(shortPlainText, "SM4/CBC/PKCS5Padding", new byte[]{10, 105, 75, -80, -85, -68, 13, -53, 42, 91, -64, 99, 104, 35, -85, 8});
++        testByteBuffer(shortPlainText, "SM4/ECB/PKCS5Padding", new byte[]{-10, 99, -9, 90, 58, -36, -109, 54, -55, -52, 7, -49, 110, -88, 72, 40});
++        // as of 22/Mar/2024, uadk_provider doesn't support SM4-OFB
++	/*
++        test(plainText, "SM4/OFB/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
++        test(shortPlainText, "SM4/OFB/PKCS5Padding", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110});
++
+         testByteBuffer(plainText, "SM4/OFB/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
+         testByteBuffer(shortPlainText, "SM4/OFB/PKCS5Padding", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110});
+-
++	*/
+         System.setProperty("kae.sm4.maxChunkSize", "65536");
++        System.out.println("SM4Test::main() Test ====================sm4.maxChunkSize 65536=================");
+         testByteBuffer(plainText, "SM4/CBC/NOPADDING", new byte[]{86, 69, 47, -115, -63, 54, 35, 24, -2, 114, 113, 102, 82, 20, 69, 59});
+-        testByteBuffer(shortPlainText, "SM4/CBC/PKCS5Padding", new byte[]{10, 105, 75, -80, -85, -68, 13, -53, 42, 91, -64, 99, 104, 35, -85, 8});
+         testByteBuffer(plainText, "SM4/ECB/NOPADDING", new byte[]{103, 36, -31, -53, -109, -12, -71, -79, -54, 106, 10, -3, -35, -22, -122, -67});
+-        testByteBuffer(shortPlainText, "SM4/ECB/PKCS5Padding", new byte[]{-10, 99, -9, 90, 58, -36, -109, 54, -55, -52, 7, -49, 110, -88, 72, 40});
+         testByteBuffer(plainText, "SM4/CTR/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
++        /*
+         testByteBuffer(plainText, "SM4/OFB/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
++        testByteBuffer(shortPlainText, "SM4/CBC/PKCS5Padding", new byte[]{10, 105, 75, -80, -85, -68, 13, -53, 42, 91, -64, 99, 104, 35, -85, 8});
++        testByteBuffer(shortPlainText, "SM4/ECB/PKCS5Padding", new byte[]{-10, 99, -9, 90, 58, -36, -109, 54, -55, -52, 7, -49, 110, -88, 72, 40});
+         testByteBuffer(shortPlainText, "SM4/OFB/PKCS5Padding", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110});
+-
++	*/
+ 
+     }
+ 
+-- 
+2.34.1
+

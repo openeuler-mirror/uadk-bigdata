@@ -1,0 +1,41 @@
+From 2486064c311fc1d11d6019ceb1741c6e4d7f2311 Mon Sep 17 00:00:00 2001
+From: Guodong Xu <guodong.xu@linaro.org>
+Date: Sat, 23 Mar 2024 12:59:36 +0000
+Subject: [OSSL3.0 4/9] KAEProvider.java: remove SM4/OFB because uadk_provier
+ doesn't support it
+
+Signed-off-by: Guodong Xu <guodong.xu@linaro.org>
+---
+ .../org/openeuler/security/openssl/KAEProvider.java      | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java b/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java
+index 3e7f54638..fe9bba4eb 100644
+--- a/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java
++++ b/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java
+@@ -191,7 +191,8 @@ public class KAEProvider extends Provider {
+     }
+ 
+     private void putSM4() {
+-        final String blockModes = "ECB|CBC|CTR|OFB";
++        // as of 23/Mar/2024, uadk_provider doesn't support OFB
++        final String blockModes = "ECB|CBC|CTR";
+         final String blockPads = "NOPADDING|PKCS5PADDING";
+ 
+         put("Cipher.SM4 SupportedModes", blockModes);
+@@ -205,9 +206,9 @@ public class KAEProvider extends Provider {
+         put("Cipher.SM4/ECB/PKCS5Padding", "org.openeuler.security.openssl.KAESM4Cipher$Sm4$Ecb$PKCS5Padding");
+         put("Alg.Alias.Cipher.SM4/ECB/PKCS7Padding", "SM4/ECB/PKCS5Padding");
+         put("Cipher.SM4/CTR/NoPadding", "org.openeuler.security.openssl.KAESM4Cipher$Sm4$Ctr$NoPadding");
+-        put("Cipher.SM4/OFB/NoPadding", "org.openeuler.security.openssl.KAESM4Cipher$Sm4$Ofb$NoPadding");
+-        put("Cipher.SM4/OFB/PKCS5Padding", "org.openeuler.security.openssl.KAESM4Cipher$Sm4$Ofb$PKCS5Padding");
+-        put("Alg.Alias.Cipher.SM4/OFB/PKCS7Padding", "SM4/OFB/PKCS5Padding");
++        // put("Cipher.SM4/OFB/NoPadding", "org.openeuler.security.openssl.KAESM4Cipher$Sm4$Ofb$NoPadding");
++        // put("Cipher.SM4/OFB/PKCS5Padding", "org.openeuler.security.openssl.KAESM4Cipher$Sm4$Ofb$PKCS5Padding");
++        // put("Alg.Alias.Cipher.SM4/OFB/PKCS7Padding", "SM4/OFB/PKCS5Padding");
+ 
+         put("KeyGenerator.SM4", "com.sun.crypto.provider.AESKeyGenerator");
+         put("AlgorithmParameters.SM4", "com.sun.crypto.provider.AESParameters");
+-- 
+2.34.1
+

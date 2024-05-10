@@ -1,0 +1,100 @@
+From 998707786eb304c7ee5e7c9e38ff5f39e5ba411c Mon Sep 17 00:00:00 2001
+From: Guodong Xu <guodong.xu@linaro.org>
+Date: Sat, 23 Mar 2024 11:44:31 +0000
+Subject: [OSSL3.0 2/9] kaeprovider.conf: updated to allow only SM4 for
+ uadk_provider
+
+Signed-off-by: Guodong Xu <guodong.xu@linaro.org>
+---
+ jdk/src/share/lib/security/kaeprovider.conf | 48 +++++++++++----------
+ 1 file changed, 26 insertions(+), 22 deletions(-)
+
+diff --git a/jdk/src/share/lib/security/kaeprovider.conf b/jdk/src/share/lib/security/kaeprovider.conf
+index cc50611d1..c0ce611de 100644
+--- a/jdk/src/share/lib/security/kaeprovider.conf
++++ b/jdk/src/share/lib/security/kaeprovider.conf
+@@ -8,23 +8,25 @@
+ 
+ # Algorithms are enabled by default if KAEProvider is used.
+ # Delete # if you want to disable certain algorithm.
+-# kae.md5=false
+-# kae.sha256=false
+-# kae.sha384=false
+-# kae.sm3=false
+-# kae.aes=false
+-# kae.sm4=false
+-# kae.hmac=false
+-# kae.rsa=false
+-# kae.dh=false
+-# kae.ec=false
++kae.md5=false
++kae.sha256=false
++kae.sha384=false
++kae.sm3=false
++kae.aes=false
++kae.hmac=false
++kae.rsa=false
++kae.dh=false
++kae.ec=false
++
++# for OpenSSL 3.0, so far, only SM4 is enabled and verified.
++kae.sm4=true
+ 
+ # Configure engine id, the default value is kae.
+ # kae.engine.id=kae
+ 
+ # Configure whether libcrypto.so uses GLOBAL mode, uses LOCAL mode by default.
+-# If you use uadk_engine, you need to enable this option.
+-# kae.libcrypto.useGlobalMode=false
++# If you use uadk_engine/uadk_provider, you need to enable this option.
++kae.libcrypto.useGlobalMode=true
+ 
+ # The following configuration will only take effect when using KAEProvider.
+ # Configure whether to enable KAE hardware acceleration for each category of algorithm.
+@@ -35,13 +37,15 @@
+ # The aes/hmac/ec category algorithm use openssl soft calculation by default.
+ # The ec category algorithm configuration does not take effect temporarily. and it
+ # currently does not support KAE hardware acceleration, temporarily use openssl soft calculation.
+-# kae.digest.useKaeEngine=true
+-# kae.aes.useKaeEngine=false
+-# kae.sm4.useKaeEngine=true
+-# kae.hmac.useKaeEngine=false
+-# kae.rsa.useKaeEngine=true
+-# kae.dh.useKaeEngine=true
+-# kae.ec.useKaeEngine=false
++kae.digest.useKaeEngine=false
++kae.aes.useKaeEngine=false
++kae.hmac.useKaeEngine=false
++kae.rsa.useKaeEngine=false
++kae.dh.useKaeEngine=false
++kae.ec.useKaeEngine=false
++
++kae.sm4.useKaeEngine=true
++
+ #
+ # Some engines do not fully support certain categories of algorithms, for example, the digest
+ # algorithm implemented by kae engine only supports md5 and sm3.For more information, please refer to:
+@@ -60,7 +64,7 @@
+ # rsa    : rsa
+ # dh     : dh
+ # ec     : ec
+-# kae.engine.disabledAlgorithms=sha256,sha384
++kae.engine.disabledAlgorithms=sha256,sha384,sm4-ofb
+ 
+ # SM4 max chunk size of each encryption or decryption.
+ # when input data does not have an accessible byte[].
+@@ -68,9 +72,9 @@
+ # kae.sm4.maxChunkSize=4096
+ 
+ # Enable engine load log.
+-# kae.log=true
++kae.log=true
+ #
+ # It only takes effect when the property kae.log value is true.
+ # Configure log file path, default value is System.getProperty("user.dir") + "/ + "kae.log".
+-# kae.log.file=/home/user/kae.log
++kae.log.file=/var/log/kae.log
+ 
+-- 
+2.34.1
+

@@ -1,0 +1,381 @@
+From e4e8af037bb12e1080420feb81492f1d8ed23a31 Mon Sep 17 00:00:00 2001
+From: Guodong Xu <guodong.xu@linaro.org>
+Date: Wed, 26 Jul 2023 11:25:34 +0800
+Subject: [OSSL3.0 3/9] libj2kae.so: add openssl 3.0 and sm4 support
+
+In general, this patch updates the baseline from openssl 1.1.1 to 3.0
+
+kae_symmetric_cipher.c:
+ Handling of sm4-cbc and sm4-ctr in EVP_CIPHER_fetch() with specific
+ propetry string.
+
+Signed-off-by: Guodong Xu <guodong.xu@linaro.org>
+---
+ .../security/openssl/kae_cipher_rsa.c         |   2 +-
+ .../openeuler/security/openssl/kae_provider.c | 127 ++++++++++++++++--
+ .../security/openssl/kae_symmetric_cipher.c   |  64 ++++++++-
+ .../org/openeuler/security/openssl/kae_util.c |  12 ++
+ .../org/openeuler/security/openssl/kae_util.h |  18 +++
+ 5 files changed, 212 insertions(+), 11 deletions(-)
+
+diff --git a/jdk/src/solaris/native/org/openeuler/security/openssl/kae_cipher_rsa.c b/jdk/src/solaris/native/org/openeuler/security/openssl/kae_cipher_rsa.c
+index d9b16ab9d..cd8207dad 100644
+--- a/jdk/src/solaris/native/org/openeuler/security/openssl/kae_cipher_rsa.c
++++ b/jdk/src/solaris/native/org/openeuler/security/openssl/kae_cipher_rsa.c
+@@ -21,11 +21,11 @@
+  * questions.
+  */
+ 
++#include "kae_util.h"
+ #include <stdbool.h>
+ #include <openssl/rsa.h>
+ #include <openssl/evp.h>
+ #include "kae_log.h"
+-#include "kae_util.h"
+ #include "kae_exception.h"
+ #include "org_openeuler_security_openssl_KAERSACipher.h"
+ 
+diff --git a/jdk/src/solaris/native/org/openeuler/security/openssl/kae_provider.c b/jdk/src/solaris/native/org/openeuler/security/openssl/kae_provider.c
+index fca035b04..20cc5dfda 100644
+--- a/jdk/src/solaris/native/org/openeuler/security/openssl/kae_provider.c
++++ b/jdk/src/solaris/native/org/openeuler/security/openssl/kae_provider.c
+@@ -28,8 +28,35 @@
+ #include "kae_exception.h"
+ #include "kae_util.h"
+ #include "org_openeuler_security_openssl_KAEProvider.h"
++#include "stdio.h"
+ 
+ #define KAE_OPENSSL_LIBRARY "libcrypto.so"
++#define OPENSSL_CONF "openssl-loadbalancing.cnf"
++
++#if 0
++/* check device file's permission */
++#include <stdio.h>
++#include <unistd.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <stdlib.h>
++
++static int check_device_permission(char *filename) {
++
++   struct stat fileStat;
++   // Check for file existence
++   if (access(filename, F_OK) != 0) {
++       printf("%s does not exist.\n", filename);
++       return 1;
++   }
++   if (stat(filename, &fileStat) == 0) {
++       // Print file permissions in octal format
++       printf("%s permissions: %o\n", filename, fileStat.st_mode & 0777);
++   }
++
++   return 0;
++}
++#endif
+ 
+ /*
+  * Class:     Java_org_openeuler_security_openssl_KAEProvider
+@@ -39,7 +66,17 @@
+ JNIEXPORT void JNICALL Java_org_openeuler_security_openssl_KAEProvider_initOpenssl
+         (JNIEnv *env, jclass cls, jboolean useGlobalMode, jstring engineId, jbooleanArray algorithmKaeFlags) {
+     SSL_load_error_strings();
++#ifndef OPENSSL_3_0_TRIAL
+     ERR_load_BIO_strings();
++#endif
++    /*
++     * Deprecated.
++     * The OpenSSL_add_all_algorithms(), OpenSSL_add_all_ciphers(),
++     * OpenSSL_add_all_digests(), and EVP_cleanup(), functions were
++     * deprecated in OpenSSL 1.1.0 by OPENSSL_init_crypto() and
++     * should not be used.
++     * https://www.openssl.org/docs/manmaster/man3/OpenSSL_add_all_algorithms.html
++     */
+     OpenSSL_add_all_algorithms();
+ 
+     /*
+@@ -71,6 +108,86 @@ JNIEXPORT void JNICALL Java_org_openeuler_security_openssl_KAEProvider_initOpens
+         dlclose(handle);
+     }
+ 
++#ifdef OPENSSL_3_0_TRIAL
++    OSSL_LIB_CTX* plibctx = GetParentLibctx();
++    // check if parent_libctx is already set
++    if (plibctx != NULL) {
++        OSSL_LIB_CTX_free(plibctx);
++        plibctx = NULL;
++    }
++    /* create a new plibctx */
++    plibctx = OSSL_LIB_CTX_new();
++    if (plibctx == NULL) {
++        ERR_print_errors_fp(stderr);
++	return;
++    }
++
++    /*
++     * Load config file for the load-balancing library context. We assume that
++     * this config file will automatically activate the load-balancing
++     * provider and the default provider.
++     *
++     */
++    // Construct the openssl configuration file's pathname
++    jclass systemClass = (*env)->FindClass(env, "java/lang/System");
++    if (systemClass == NULL) {
++        KAE_ThrowRuntimeException(env, "jclass env->FindClassa() failed");
++        return;
++    }
++    jmethodID getPropertyMethod = (*env)->GetStaticMethodID(env, systemClass, "getProperty", "(Ljava/lang/String;)Ljava/lang/String;");
++    if (getPropertyMethod == NULL) {
++        KAE_ThrowRuntimeException(env, "jmethodID env->GetStaticMethodID() of getProperty failed");
++        return;
++    }
++
++    // Get JAVA_HOME property
++    jstring javaHomeStr = (jstring)(*env)->CallStaticObjectMethod(env, systemClass, getPropertyMethod, (*env)->NewStringUTF(env, "java.home"));
++    const char *javaHome = (*env)->GetStringUTFChars(env, javaHomeStr, NULL);
++
++    // Construct default path
++    int pathBufferSize = strlen(javaHome) + strlen("/lib/") + strlen(OPENSSL_CONF) + 1;
++    char *conffilename = malloc(pathBufferSize);
++    if (conffilename == NULL) {
++        KAE_ThrowOOMException(env, "Failed to allocate memory for conffilename through malloc()");
++        return;
++    }
++
++    // conffilename = 'java.home'/lib/OPENSSL_CONF
++    snprintf(conffilename, pathBufferSize, "%s/lib/%s", javaHome, OPENSSL_CONF);
++
++    if (!OSSL_LIB_CTX_load_config(plibctx, conffilename)) {
++        ERR_print_errors_fp(stderr);
++	return;
++    }
++    free(conffilename);
++    (*env)->DeleteLocalRef(env, systemClass);
++    SetParentLibctx(plibctx);
++
++#if 0
++	/* check /dev/hisi* device file's permission */
++	check_device_permission("/dev/hisi_hpre-4");
++	check_device_permission("/dev/hisi_hpre-5");
++	check_device_permission("/dev/hisi_sec2-1");
++	check_device_permission("/dev/hisi_sec2-3");
++	check_device_permission("/dev/hisi_zip-0");
++	check_device_permission("/dev/hisi_zip-2");
++#endif
++    /* INFO: https://github.com/openssl/openssl/blob/master/doc/man5/config.pod
++     * ENVIRONMENT
++        OPENSSL_CONF
++        The path to the config file, or the empty string for none. Ignored in set-user-ID and set-group-ID programs.
++
++        OPENSSL_ENGINES
++        The path to the engines directory. Ignored in set-user-ID and set-group-ID programs.
++
++        OPENSSL_MODULES
++        The path to the directory with OpenSSL modules, such as providers. Ignored in set-user-ID and set-group-ID programs.
++
++        OPENSSL_CONF_INCLUDE
++        The optional path to prepend to all .include paths.
++     */
++#endif
++
+     // check if KaeEngine holder is already set
+     ENGINE* e = GetKaeEngine();
+     if (e != NULL) {
+@@ -78,14 +195,6 @@ JNIEXPORT void JNICALL Java_org_openeuler_security_openssl_KAEProvider_initOpens
+         e = NULL;
+     }
+ 
+-    // determine whether KAE is loaded successfully
+-    const char* id = (*env)->GetStringUTFChars(env, engineId, 0);
+-    e = ENGINE_by_id(id);
+-    (*env)->ReleaseStringUTFChars(env, engineId, id);
+-    if (e == NULL) {
+-        KAE_ThrowFromOpenssl(env, "ENGINE_by_id", KAE_ThrowRuntimeException);
+-        return;
+-    }
+     SetKaeEngine(e);
+ 
+     // initialize the engine for each algorithm
+@@ -100,4 +209,4 @@ JNIEXPORT void JNICALL Java_org_openeuler_security_openssl_KAEProvider_initOpens
+ JNIEXPORT jbooleanArray JNICALL Java_org_openeuler_security_openssl_KAEProvider_getEngineFlags
+         (JNIEnv *env, jclass cls) {
+     return getEngineFlags(env);
+-}
+\ No newline at end of file
++}
+diff --git a/jdk/src/solaris/native/org/openeuler/security/openssl/kae_symmetric_cipher.c b/jdk/src/solaris/native/org/openeuler/security/openssl/kae_symmetric_cipher.c
+index ec8894f1a..5444d3b0a 100644
+--- a/jdk/src/solaris/native/org/openeuler/security/openssl/kae_symmetric_cipher.c
++++ b/jdk/src/solaris/native/org/openeuler/security/openssl/kae_symmetric_cipher.c
+@@ -53,6 +53,13 @@ bool StartsWith(const char* str1, const char* str2)
+     return true;
+ }
+ 
++/* TODO: obsolete in OpenSSL 3.0
++ * EVP_get_cipherbyname(algo): This function is primarily for backward
++ *     compatibility with OpenSSL versions prior to 3.0.
++ *     For newer versions (OpenSSL 3.0+), consider using EVP_CIPHER_fetch()
++ *     for more flexibility in handling cipher implementations
++ *     from loaded providers.
++ */
+ static const EVP_CIPHER* EVPGetSm4CipherByName(JNIEnv* env, const char* algo)
+ {
+     static const EVP_CIPHER* sm4Ecb = NULL;
+@@ -148,12 +155,47 @@ Java_org_openeuler_security_openssl_KAESymmetricCipherBase_nativeInit(JNIEnv* en
+     int keyLength = (*env)->GetArrayLength(env, key);
+ 
+     const char* algo = (*env)->GetStringUTFChars(env, cipherType, 0);
++    KAE_TRACE("KAESymmetricCipherBase_nativeInit: enter for algo=%s.\n", algo);
++
+     if (StartsWith("aes", algo)) {
+         cipher = EVPGetAesCipherByName(env, algo);
+         kaeEngine = GetAesEngineByAlgorithmName(algo);
+     } else {
++#ifdef OPENSSL_3_0_TRIAL
++        /* OPENSSL 3.0+ fetch from libctx */
++        OSSL_LIB_CTX* plibctx = GetParentLibctx();
++        if (StartsWith("sm4-cbc", algo) || StartsWith("sm4-ctr", algo)) {
++            /*
++             * sm4/cbc and sm4/ctr are supported in loadbalance provider
++             * TODO:
++             *
++             * cipher = EVP_CIPHER_fetch(plibctx, algo, "provider=loadbalance");
++             *
++             */
++	     #if 1
++		cipher = EVP_CIPHER_fetch(plibctx, algo, "provider=uadk_provider");
++	     #else
++                cipher = EVP_CIPHER_fetch(plibctx, algo, "provider=default");
++             #endif
++        } else {
++            /*
++             * other modes go to UADK or default provider
++             * TODO: ensure UADK get fetched with property string NULL
++             */
++	    cipher = EVP_CIPHER_fetch(plibctx, algo, "provider=uadk_provider");
++        }
++        if (cipher == NULL) {
++            ERR_print_errors_fp(stderr);
++            KAE_ThrowFromOpenssl(env, "EVP_CIPHER_fetch() failed", KAE_ThrowRuntimeException);
++            goto cleanup;
++        }
++        KAE_TRACE("KAESymmetricCipherBase_nativeInit:  cipher => %p", cipher);
++
++	kaeEngine = NULL;   /* Engine is obsolete in OpenSSL 3.0 */
++#else   /* OPENSSL 1.1.1 Engine way */
+         cipher = EVPGetSm4CipherByName(env, algo);
+         kaeEngine = GetSm4EngineByAlgorithmName(algo);
++#endif
+     }
+ 
+     KAE_TRACE("KAESymmetricCipherBase_nativeInit: kaeEngine => %p", kaeEngine);
+@@ -175,11 +217,25 @@ Java_org_openeuler_security_openssl_KAESymmetricCipherBase_nativeInit(JNIEnv* en
+         keyBytes = (*env)->GetByteArrayElements(env, key, NULL);
+     }
+ 
++#ifdef OPENSSL_3_0_TRIAL
++    /* EVP_CipherInit_ex() is obsolete in OpenSSL 3.0 */
++    if (!EVP_CipherInit_ex2(ctx, cipher, (const unsigned char*)keyBytes,
++            (const unsigned char*)ivBytes, encrypt ? 1 : 0, NULL)) {
++#else
+     if (!EVP_CipherInit_ex(ctx, cipher, kaeEngine, (const unsigned char*)keyBytes,
+             (const unsigned char*)ivBytes, encrypt ? 1 : 0)) {
+-        KAE_ThrowFromOpenssl(env, "EVP_CipherInit_ex failed", KAE_ThrowRuntimeException);
++#endif
++            KAE_ThrowFromOpenssl(env, "EVP_CipherInit_ex failed", KAE_ThrowRuntimeException);
+         goto cleanup;
+     }
++    KAE_TRACE("KAESymmetricCipherBase_nativeInit:  ctx => %p", ctx);
++
++#ifdef OPENSSL_3_0_TRIAL
++    /* print load-balancer result, after CipherInit, it allocated */
++    KAE_TRACE("KAESymmetricCipherBase_nativeInit: Using implementation, name: %s, description: %s\n",
++                EVP_CIPHER_get0_name(EVP_CIPHER_CTX_get0_cipher(ctx)),
++                EVP_CIPHER_get0_description(EVP_CIPHER_CTX_get0_cipher(ctx)));
++#endif
+ 
+     EVP_CIPHER_CTX_set_padding(ctx, padding ? 1 : 0);
+ 
+@@ -220,7 +276,12 @@ Java_org_openeuler_security_openssl_KAESymmetricCipherBase_nativeUpdate(JNIEnv*
+     unsigned char* aad = NULL;
+     unsigned char* out = NULL;
+ 
++    KAE_TRACE("KAESymmetricCipherBase_nativeUpdate: enter\n");
++
+     EVP_CIPHER_CTX* ctx = (EVP_CIPHER_CTX*)ctxAddress;
++    KAE_TRACE("KAESymmetricCipherBase_nativeUpdate(ctxAddress = %p, outArr = %p, outOfs = %d)",
++              ctx, outArr, outOfs);
++
+     if (ctx == NULL || inArr == NULL || outArr == NULL) {
+         goto cleanup;
+     }
+@@ -254,6 +315,7 @@ Java_org_openeuler_security_openssl_KAESymmetricCipherBase_nativeUpdate(JNIEnv*
+     }
+ 
+     if (EVP_CipherUpdate(ctx, out, &bytesWritten, in, inLen) == 0) {
++        ERR_print_errors_fp(stderr);
+         KAE_ThrowFromOpenssl(env, "EVP_CipherUpdate failed", KAE_ThrowRuntimeException);
+         goto cleanup;
+     }
+diff --git a/jdk/src/solaris/native/org/openeuler/security/openssl/kae_util.c b/jdk/src/solaris/native/org/openeuler/security/openssl/kae_util.c
+index a16d944c4..e88b77f3d 100644
+--- a/jdk/src/solaris/native/org/openeuler/security/openssl/kae_util.c
++++ b/jdk/src/solaris/native/org/openeuler/security/openssl/kae_util.c
+@@ -25,9 +25,21 @@
+ #include <string.h>
+ #include "kae_util.h"
+ #include "kae_exception.h"
++#include "stdio.h"
+ 
+ static ENGINE* kaeEngine = NULL;
+ 
++#ifdef OPENSSL_3_0_TRIAL
++static OSSL_LIB_CTX* parent_libctx = NULL;
++void SetParentLibctx(OSSL_LIB_CTX* plibctx) {
++    parent_libctx = plibctx;
++}
++
++OSSL_LIB_CTX* GetParentLibctx() {
++    return parent_libctx;
++}
++#endif
++
+ void SetKaeEngine(ENGINE* engine) {
+     kaeEngine = engine;
+ }
+diff --git a/jdk/src/solaris/native/org/openeuler/security/openssl/kae_util.h b/jdk/src/solaris/native/org/openeuler/security/openssl/kae_util.h
+index 347337509..521fd12c6 100644
+--- a/jdk/src/solaris/native/org/openeuler/security/openssl/kae_util.h
++++ b/jdk/src/solaris/native/org/openeuler/security/openssl/kae_util.h
+@@ -27,6 +27,19 @@
+ #include <openssl/bn.h>
+ #include <jni.h>
+ 
++/*
++ * If defined, code for OPENSSL 3.0 feature trial is included
++ */
++#define OPENSSL_3_0_TRIAL
++#ifdef OPENSSL_3_0_TRIAL
++#include <openssl/crypto.h>
++#include <openssl/types.h>
++#include <openssl/provider.h>
++#include <openssl/evp.h>
++#include <openssl/bio.h>
++#include <openssl/err.h>
++#endif
++
+ typedef enum {
+     MD5_INDEX,
+     SHA256_INDEX,
+@@ -91,4 +104,9 @@ ENGINE* GetAesEngineByAlgorithmName(const char* algorithmName);
+ 
+ ENGINE* GetSm4EngineByAlgorithmName(const char* algorithmName);
+ 
++#ifdef OPENSSL_3_0_TRIAL
++void SetParentLibctx(OSSL_LIB_CTX* plibctx);
++OSSL_LIB_CTX* GetParentLibctx();
++#endif
++
+ #endif
+-- 
+2.34.1
+
