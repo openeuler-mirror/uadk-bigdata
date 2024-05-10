@@ -130,6 +130,14 @@ Tag：[v1.0-tag2.6-sm4-ctr](https://github.com/docularxu/uadk/releases/tag/v1.0-
 
 在主机环境下用普通用户身份编译。
 
+在 openEuler OS上，需要安装依赖包`numactl-devel`。
+
+    sudo yum install -y -q numactl-devel
+
+在 Ubuntu OS上，运行：
+
+    sudo apt install libnuma-dev
+
 ### 编译命令
 
     $ cd uadk.git
@@ -148,12 +156,17 @@ Tag：[v1.0-tag2.6-sm4-ctr](https://github.com/docularxu/uadk/releases/tag/v1.0-
 
 在能够使用 UADK 功能之前，需要设置相关的环境变量。为了方便使用，环境变量（包括此处为 UADK 准备的，也包括下面 UADK Provider 以及 OpenSSL 3.0+ 相关）集中放在这个脚本文件里：[uadk-set-env.sh](https://github.com/docularxu/build-containers/blob/main/metadata/uadk-set-env.sh)。使用时，在当前环境下 `.  ` 运行（相当于`source`命令）将文件中的内容导入当前shell环境。
 
-    $ . ./uadk-set-env.sh
+    $ . ./build-containers.git/metadata/uadk-set-env.sh
 
 UADK 测试命令，推荐使用 `uadk_tool`。前述步骤正常的话，它已经被安装到了 `/usr/local/bin` 之下。可直接运行。
 
     $ uadk_tool benchmark --alg sm4-128-ctr --mode sva --opt 0 --sync --pktlen 1024 --seconds 5 --multi 1 --thread 2 --ctxnum 6
+        algname:        length:         perf:           iops:           CPU_rate:
+        sm4-128-ctr     1024Bytes       195300.4KB/s    195.3Kops       53.20%
+
     $ uadk_tool benchmark --alg sm4-128-ecb --mode sva --opt 0 --sync --pktlen 1024 --seconds 5 --multi 1 --thread 2 --ctxnum 6
+        algname:        length:         perf:           iops:           CPU_rate:
+        sm4-128-ecb     1024Bytes       168505.8KB/s    168.5Kops       47.60%
 
 ## OpenSSL 3.0
 
@@ -229,7 +242,7 @@ Tag：[v1.0-tag1.3-sm4-ctr](https://github.com/docularxu/uadk_engine/releases/ta
 
 这一步有可能出现安装路径是`/usr/local/lib`的情况。为了让 OpenSSL 3.0 能正确找到 UADK Proivder (uadk_provider.so)，需要手动把 `uadk_provider.*` 移动到 `/usr/local/lib/ossl-modules` 目录下。
 
-    $ sudo mv /usr/local/lib/uadk_procider.* /usr/local/lib/ossl-modules
+    $ sudo mv /usr/local/lib/uadk_provider.* /usr/local/lib/ossl-modules
 
 ### 测试验证
 
@@ -262,4 +275,5 @@ Tag：[v1.0-tag1.3-sm4-ctr](https://github.com/docularxu/uadk_engine/releases/ta
 
 在执行这些操作之前和之后，查看加速器硬件寄存器 `QM_DFX_DB_CNT` 值的是否有变化，来判断 UADK 确实被使用。
 
-    sudo cat /sys/kernel/debug/hisi_sec2/*/qm/regs | grep QM_DFX_DB_CNT
+    sudo su
+    cat /sys/kernel/debug/hisi_sec2/*/qm/regs | grep QM_DFX_DB_CNT
