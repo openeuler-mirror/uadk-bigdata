@@ -1,0 +1,97 @@
+From 482d7c278f701bc7b85b4a56e5af19e630f1a091 Mon Sep 17 00:00:00 2001
+From: Guodong Xu <guodong.xu@linaro.org>
+Date: Wed, 26 Jul 2023 11:15:21 +0800
+Subject: [OSSL3.0 1/9] openssl-loadbalancing.cnf: add configuration file for
+ openssl 3.0 load-balance provider
+
+Signed-off-by: Guodong Xu <guodong.xu@linaro.org>
+---
+ jdk/make/CopyFiles.gmk                        |  6 +-
+ .../lib/security/openssl-loadbalancing.cnf    | 56 +++++++++++++++++++
+ 2 files changed, 60 insertions(+), 2 deletions(-)
+ create mode 100644 jdk/src/share/lib/security/openssl-loadbalancing.cnf
+
+diff --git a/jdk/make/CopyFiles.gmk b/jdk/make/CopyFiles.gmk
+index 07f6d909d..eeaea2a52 100644
+--- a/jdk/make/CopyFiles.gmk
++++ b/jdk/make/CopyFiles.gmk
+@@ -619,10 +619,12 @@ ifeq ($(ENABLE_KAE), true)
+   
+     KAE_CONF_PATH= $(JDK_OUTPUTDIR)/lib
+     $(KAE_CONF_PATH)/kaeprovider.conf: $(JDK_TOPDIR)/src/share/lib/security/kaeprovider.conf
+-	$(call install-file)
+-
++	  $(call install-file)
+     COPY_FILES += $(KAE_CONF_PATH)/kaeprovider.conf
+ 
++    $(KAE_CONF_PATH)/openssl-loadbalancing.cnf: $(JDK_TOPDIR)/src/share/lib/security/openssl-loadbalancing.cnf
++	  $(call install-file)
++    COPY_FILES += $(KAE_CONF_PATH)/openssl-loadbalancing.cnf
+   endif
+ endif
+ 
+diff --git a/jdk/src/share/lib/security/openssl-loadbalancing.cnf b/jdk/src/share/lib/security/openssl-loadbalancing.cnf
+new file mode 100644
+index 000000000..ddc940cb4
+--- /dev/null
++++ b/jdk/src/share/lib/security/openssl-loadbalancing.cnf
+@@ -0,0 +1,56 @@
++# Configuration OpenSSL for load-balancing provider
++#
++# Format of this file please refer to:
++#     https://www.openssl.org/docs/man3.0/man5/config.html
++#
++
++# These must be in the default section
++config_diagnostics = 1
++openssl_conf = openssl_init
++
++[openssl_init]
++providers = providers
++
++#
++# Note: provider path needs to set in OPENSSL_MODULES, if it is not given as full path in
++#       the 'module=...' para of each provider's conf section.
++# Eg. OPENSSL_MODULES can be set either as part of the commandline, or as the environment:
++#     OPENSSL_MODULES=/home/guodong/osslinstall/lib/ossl-modules
++#
++
++[providers]
++# loadbalance = loadbalance_conf
++# libmd5mbprov = libmd5mbprov_conf
++default = default_conf
++uadk_provider = uadk_provider_conf
++
++#
++# Refer to these for settings of 'lb-strategy=.' in [loadbalance_conf] section
++#
++# #define LB_STRATEGY_ROUND_ROBIN         1
++# #define LB_STRATEGY_PRIORITY            2
++# #define LB_STRATEGY_FREE_BANDWIDTH      3
++# #define LB_STRATEGY_PACKET_SIZE         4
++#
++
++[default_conf]
++activate = yes
++
++[uadk_provider_conf]
++module = uadk_provider.so
++# module = /usr/local/lib/ossl-modules/uadk_provider.so
++activate = yes
++UADK_CMD_ENABLE_RSA_ENV = 1
++UADK_CMD_ENABLE_DH_ENV = 1
++UADK_CMD_ENABLE_CIPHER_ENV = 1
++UADK_CMD_ENABLE_DIGEST_ENV = 1
++UADK_CMD_ENABLE_ECC_ENV = 1
++
++[libmd5mbprov_conf]
++module = /home/guodong/osslinstall/lib/ossl-modules/libmd5mbprov.so  # /docker-volume/md5_mb_provider.git/build/src/libmd5mbprov.so
++activate = yes
++
++[loadbalance_conf]
++module = loadbalance.so
++activate = yes
++lb-strategy = 1
+-- 
+2.34.1
+

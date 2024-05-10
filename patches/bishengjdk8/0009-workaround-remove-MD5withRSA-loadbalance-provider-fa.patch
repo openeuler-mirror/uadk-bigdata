@@ -1,0 +1,51 @@
+From ee674aa01a0c12af6a46ba4523412df867aace29 Mon Sep 17 00:00:00 2001
+From: Guodong Xu <guodong.xu@linaro.org>
+Date: Wed, 26 Jul 2023 09:28:34 +0000
+Subject: [OSSL3.0 9/9] workaround: remove MD5withRSA -- loadbalance provider
+ fails this, no matter default impl or lb impl
+
+Signed-off-by: Guodong Xu <guodong.xu@linaro.org>
+---
+ .../classes/org/openeuler/security/openssl/KAEProvider.java  | 5 -----
+ jdk/test/org/openeuler/security/openssl/RSATest.java         | 2 +-
+ 2 files changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java b/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java
+index d3b05ab2c..e5cc634c7 100644
+--- a/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java
++++ b/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java
+@@ -259,8 +259,6 @@ public class KAEProvider extends Provider {
+     }
+ 
+     private void putSignatureRSA() {
+-        put("Signature.MD5withRSA",
+-                "org.openeuler.security.openssl.KAERSASignature$MD5withRSA");
+         put("Signature.SHA1withRSA",
+                 "org.openeuler.security.openssl.KAERSASignature$SHA1withRSA");
+         put("Signature.SHA224withRSA",
+@@ -273,9 +271,6 @@ public class KAEProvider extends Provider {
+                 "org.openeuler.security.openssl.KAERSASignature$SHA512withRSA");
+ 
+         // alias
+-        put("Alg.Alias.Signature.1.2.840.113549.1.1.4", "MD5withRSA");
+-        put("Alg.Alias.Signature.OID.1.2.840.113549.1.1.4", "MD5withRSA");
+-
+         put("Alg.Alias.Signature.1.2.840.113549.1.1.5", "SHA1withRSA");
+         put("Alg.Alias.Signature.OID.1.2.840.113549.1.1.5", "SHA1withRSA");
+         put("Alg.Alias.Signature.1.3.14.3.2.29", "SHA1withRSA");
+diff --git a/jdk/test/org/openeuler/security/openssl/RSATest.java b/jdk/test/org/openeuler/security/openssl/RSATest.java
+index 1f740af0b..668870c3c 100644
+--- a/jdk/test/org/openeuler/security/openssl/RSATest.java
++++ b/jdk/test/org/openeuler/security/openssl/RSATest.java
+@@ -43,7 +43,7 @@ public class RSATest {
+     //    512, 768,
+     private static int[] keySizes = {1024, 2048, 4096, 5120, 6144};
+     private static String[] signAlgorithms = {
+-            "MD2withRSA", "MD5withRSA", "SHA1withRSA", "SHA224withRSA", "SHA256withRSA", "SHA384withRSA", "SHA512withRSA"
++            "MD2withRSA", "SHA1withRSA", "SHA224withRSA", "SHA256withRSA", "SHA384withRSA", "SHA512withRSA"
+     };
+     private static String[] signAlgorithmsPSS = {"SHA-1", "SHA-224", "SHA-256", "SHA-384", "SHA-512"};
+ 
+-- 
+2.34.1
+

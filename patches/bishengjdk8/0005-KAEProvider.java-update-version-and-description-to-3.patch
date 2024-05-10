@@ -1,0 +1,26 @@
+From e3b981654f51e741c76aa3924a104aa9a9a6e2ca Mon Sep 17 00:00:00 2001
+From: Guodong Xu <guodong.xu@linaro.org>
+Date: Thu, 28 Mar 2024 09:56:07 +0000
+Subject: [OSSL3.0 5/9] KAEProvider.java: update version and description to 3.0
+
+Signed-off-by: Guodong Xu <guodong.xu@linaro.org>
+---
+ .../classes/org/openeuler/security/openssl/KAEProvider.java     | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java b/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java
+index fe9bba4eb..d3b05ab2c 100644
+--- a/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java
++++ b/jdk/src/solaris/classes/org/openeuler/security/openssl/KAEProvider.java
+@@ -91,7 +91,7 @@ public class KAEProvider extends Provider {
+     }
+ 
+     public KAEProvider() {
+-        super("KAEProvider", 1.8d, "KAE provider");
++        super("KAEProvider", 3.0d, "KAE provider with uadk_provider on OpenSSL 3.0+");
+         if (KAEConfig.useKaeProvider("kae.md5")) {
+             putMD5();
+         }
+-- 
+2.34.1
+

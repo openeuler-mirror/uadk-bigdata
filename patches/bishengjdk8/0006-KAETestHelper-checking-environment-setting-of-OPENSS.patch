@@ -1,0 +1,30 @@
+From 0ca4391f8c010be028ca2fb0498c467617e32379 Mon Sep 17 00:00:00 2001
+From: Guodong Xu <guodong.xu@linaro.org>
+Date: Sat, 23 Mar 2024 11:49:13 +0000
+Subject: [OSSL3.0 6/9] KAETestHelper: checking environment setting of
+ OPENSSL_MODULES
+
+Signed-off-by: Guodong Xu <guodong.xu@linaro.org>
+---
+ jdk/test/org/openeuler/security/openssl/KAETestHelper.java | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/jdk/test/org/openeuler/security/openssl/KAETestHelper.java b/jdk/test/org/openeuler/security/openssl/KAETestHelper.java
+index 31e22493a..a2af7c5e9 100644
+--- a/jdk/test/org/openeuler/security/openssl/KAETestHelper.java
++++ b/jdk/test/org/openeuler/security/openssl/KAETestHelper.java
+@@ -102,9 +102,9 @@ class KAETestHelper {
+     }
+ 
+     private static void init() {
+-        engineRootPath = System.getenv("OPENSSL_ENGINES");
++        engineRootPath = System.getenv("OPENSSL_MODULES");
+         if (engineRootPath == null || engineRootPath.equals("")) {
+-            System.out.println("Environment variable OPENSSL_ENGINES is not configured");
++            System.out.println("Environment variable OPENSSL_MODULES is not configured");
+         }
+         hasKaeEngine = hasEngine(KAE_ENGINE_ID);
+         hasUadkEngine = hasEngine(UADK_ENGINE_ID);
+-- 
+2.34.1
+

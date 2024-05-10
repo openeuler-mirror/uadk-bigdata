@@ -1,0 +1,129 @@
+From fd955c064fd4284bdd94698973a3af5295c65479 Mon Sep 17 00:00:00 2001
+From: Guodong Xu <guodong.xu@linaro.org>
+Date: Wed, 26 Jul 2023 11:27:36 +0800
+Subject: [OSSL3.0 7/9] SM4Test.java: add multi-thread test for
+ SM4/CTR/NOPADDING
+
+Signed-off-by: Guodong Xu <guodong.xu@linaro.org>
+---
+ .../openeuler/security/openssl/SM4Test.java   | 71 +++++++++++++++++--
+ 1 file changed, 65 insertions(+), 6 deletions(-)
+
+diff --git a/jdk/test/org/openeuler/security/openssl/SM4Test.java b/jdk/test/org/openeuler/security/openssl/SM4Test.java
+index 1029fe897..4d83d6867 100644
+--- a/jdk/test/org/openeuler/security/openssl/SM4Test.java
++++ b/jdk/test/org/openeuler/security/openssl/SM4Test.java
+@@ -30,6 +30,13 @@ import java.security.Security;
+ import javax.crypto.Cipher;
+ import javax.crypto.spec.IvParameterSpec;
+ import javax.crypto.spec.SecretKeySpec;
++import java.io.PrintStream;
++import java.security.InvalidKeyException;
++import java.security.InvalidAlgorithmParameterException;
++import java.security.NoSuchAlgorithmException;
++import javax.crypto.IllegalBlockSizeException;
++import javax.crypto.BadPaddingException;
++import javax.crypto.NoSuchPaddingException;
+ 
+ /**
+  * @test
+@@ -46,12 +53,14 @@ public class SM4Test {
+     private static String shortPlainText = "helloworld"; // 5 bytes for padding
+ 
+     public static void main(String[] args) throws Exception {
++        System.out.println("SM4Test::main().");
+         Security.insertProviderAt(new KAEProvider(), 1);
++        test(plainText, "SM4/CTR/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
++        test_threads(plainText, "SM4/CTR/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
+         test(plainText, "SM4/CBC/NOPADDING", new byte[]{86, 69, 47, -115, -63, 54, 35, 24, -2, 114, 113, 102, 82, 20, 69, 59});
+         test(shortPlainText, "SM4/CBC/PKCS5Padding", new byte[]{10, 105, 75, -80, -85, -68, 13, -53, 42, 91, -64, 99, 104, 35, -85, 8});
+         test(plainText, "SM4/ECB/NOPADDING", new byte[]{103, 36, -31, -53, -109, -12, -71, -79, -54, 106, 10, -3, -35, -22, -122, -67});
+         test(shortPlainText, "SM4/ECB/PKCS5Padding", new byte[]{-10, 99, -9, 90, 58, -36, -109, 54, -55, -52, 7, -49, 110, -88, 72, 40});
+-        test(plainText, "SM4/CTR/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
+         test(plainText, "SM4/OFB/NOPADDING", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110, -100, -113, -46, -29, -11, 71});
+         test(shortPlainText, "SM4/OFB/PKCS5Padding", new byte[]{32, 108, 35, 108, -16, 119, -111, 114, 94, 110});
+ 
+@@ -78,25 +87,75 @@ public class SM4Test {
+     }
+ 
+     public static void test(String plainText, String algo, byte[] expectRes) throws Exception {
++       System.out.printf("SM4Test: SM4Test::test(), algo=%s.\n", algo);
+        Cipher encryptCipher = Cipher.getInstance(algo);
++       System.out.printf("SM4Test: after encryptCipher = Cipher.getInstance(%s).\n", algo);
+        if (algo.contains("ECB")) {
+            encryptCipher.init(Cipher.ENCRYPT_MODE, ks);
+        } else {
+            encryptCipher.init(Cipher.ENCRYPT_MODE, ks, iv);
+        }
++       System.out.printf("SM4Test: after encryptCipher.init(%s)\n", algo);
+        byte[] cipherText = encryptCipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
+        if (!Arrays.equals(cipherText, expectRes)) {
+-           throw new RuntimeException("sm4 encryption failed, algo = " + algo);
++           throw new RuntimeException("SM4Test: FAILURE: sm4 encryption failed, algo = " + algo);
+        }
++       System.out.printf("SM4Test: after encryptCipher.doFinal(%s)\n", algo);
+ 
+-       Cipher decryptCipher = Cipher.getInstance(algo);
+-       decryptCipher.init(Cipher.DECRYPT_MODE, ks, encryptCipher.getParameters());
+-       String decryptPlainText = new String(decryptCipher.doFinal(cipherText));
++       encryptCipher.init(Cipher.DECRYPT_MODE, ks, encryptCipher.getParameters());
++       System.out.printf("SM4Test: after DECRYPT_MODE init, encryptCipher.init(%s)\n", algo);
++       String decryptPlainText = new String(encryptCipher.doFinal(cipherText));
+        if (!plainText.equals(decryptPlainText)) {
+-           throw new RuntimeException("sm4 decryption failed, algo = " + algo);
++           throw new RuntimeException("SM4Test: FAILURE: sm4 decryption failed, algo = " + algo);
++       }
++       System.out.printf("SM4Test: after DECRYPT_MODE doFinal, encryptCipher.doFinal(%s)\n", algo);
++    }
++
++    public static void test_threads(String plainText, String algo, byte[] expectRes) throws Exception {
++       int numberOfThreads = 10;
++       for (int i = 0; i < numberOfThreads; i++) {
++           Thread thread = new Thread(new MyRunnable(algo, expectRes, i), "Thread-" + i);
++           thread.start();
+        }
+     }
+ 
++    static class MyRunnable implements Runnable {
++        private String algo;
++        private byte[] expectRes;
++        private int threadid;
++
++        public MyRunnable(String algo, byte[] expectRes, int threadid) {
++            this.algo = algo;
++            this.expectRes = expectRes;
++            this.threadid = threadid;
++        }
++
++        public void run() {
++            try {
++                Cipher encryptCipher = Cipher.getInstance(algo);
++                if (algo.contains("ECB")) {
++                    encryptCipher.init(Cipher.ENCRYPT_MODE, ks);
++                } else {
++                    encryptCipher.init(Cipher.ENCRYPT_MODE, ks, iv);
++                }
++                byte[] cipherText = encryptCipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
++                if (!Arrays.equals(cipherText, expectRes)) {
++                    throw new RuntimeException("sm4 encryption failed, algo = " + algo +" ,threadid = " + threadid);
++                }
++
++                encryptCipher.init(Cipher.DECRYPT_MODE, ks, encryptCipher.getParameters());
++                String decryptPlainText = new String(encryptCipher.doFinal(cipherText));
++                if (!plainText.equals(decryptPlainText)) {
++                    throw new RuntimeException("sm4 decryption failed, algo = " + algo +" ,threadid = " + threadid);
++                }
++            } catch (BadPaddingException | IllegalBlockSizeException | NoSuchPaddingException e) {
++                e.printStackTrace();
++            } catch (InvalidAlgorithmParameterException | InvalidKeyException | NoSuchAlgorithmException e) {
++                e.printStackTrace();
++            }
++        }
++    }
++
+     public static void testCtrShortIv(String plainText, String algo, byte[] expectRes) throws Exception {
+        Cipher encryptCipher = Cipher.getInstance(algo);
+        encryptCipher.init(Cipher.ENCRYPT_MODE, ks, shortIv);
+-- 
+2.34.1
+
