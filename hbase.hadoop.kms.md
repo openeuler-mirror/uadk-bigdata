@@ -15,6 +15,7 @@
   - [Hadoop, HBase 服务启动和停止](#hadoop-hbase-服务启动和停止)
     - [启动](#启动)
     - [停止](#停止)
+    - [多节点集群部署的 start/stop 脚本](#多节点集群部署的-startstop-脚本)
   - [Hadoop / HDFS 验证测试](#hadoop--hdfs-验证测试)
   - [测试用例：a oneliner](#测试用例a-oneliner)
   - [`hbase pe` 命令提示](#hbase-pe-命令提示)
@@ -183,6 +184,63 @@ The buffer size used by CryptoInputStream and CryptoOutputStream.
     hadoop --daemon stop kms
     ${HADOOP_HOME}/sbin/stop-all.sh
 
+### 多节点集群部署的 start/stop 脚本
+
+    # ls
+    mount.sh  start_hadoop.sh  stop_hadoop.sh
+    # cat mount.sh
+        #!/bin/sh
+
+        ip_arr="agent1 agent2 agent3"
+        function mount_disk(){
+        for ip in $ip_arr
+        do
+            ssh $ip "sh /root/init.sh"
+        done
+        }
+
+        mount_disk
+
+    # cat start_hadoop.sh
+        #!/bin/sh
+
+        $HADOOP_HOME/sbin/start-all.sh
+        $HADOOP_HOME/sbin/mr-jobhistory-daemon.sh start historyserver
+        $HADOOP_HOME/bin/hadoop --daemon start kms
+
+    # cat stop_hadoop.sh
+        #!/bin/sh
+
+        $HADOOP_HOME/sbin/stop-all.sh
+        $HADOOP_HOME/sbin/mr-jobhistory-daemon.sh stop historyserver
+        $HADOOP_HOME/bin/hadoop --daemon stop kms
+
+    # cat init_ssd.sh
+        #!/bin/sh
+
+        j=1
+        for i in 0 2 3;do
+                umount /dev/nvme${i}n1
+                mkdir -p /srv/BigData/hadoop/data${j}
+                #rm /home/hadoop -rf
+                #mkfs.ext4 -F /dev/nvme${i}n1
+                mount  /dev/nvme${i}n1 /srv/BigData/hadoop/data${j}
+                j=$(($j+1))
+        done
+
+    # cat init.sh
+        #!/bin/sh
+
+        j=1
+        for i in a b c d e f g h i j k l;do
+                umount /dev/sd$i
+                mkdir -p /srv/BigData/hadoop/data${j}
+                #rm /home/hadoop -rf
+        #        mkfs.ext4 -F /dev/sd$i
+                mount  /dev/sd$i /srv/BigData/hadoop/data${j}
+                j=$(($j+1))
+        done
+
 ## Hadoop / HDFS 验证测试
 
 各种命令的输出：
@@ -225,7 +283,7 @@ The buffer size used by CryptoInputStream and CryptoOutputStream.
 
 ## 测试用例：a oneliner
 
-    # for i in {1..100}; do echo "Run $i:" && hadoop fs -rm /zone5/jre-bisheng-jdk8u402-kaeprovider-ossl3.0-0325.tar.gz || true && hadoop fs -put jre-bisheng-jdk8u402-kaeprovider-ossl3.0-0325.tar.gz /zone5 && cat /sys/kernel/debug/hisi_sec2/*/qm/regs | grep QM_DFX_DB_CNT && echo ""; done
+    # for i in {1..1}; do echo "Run $i:" && hadoop fs -rm /zone2/jre-bisheng-jdk8u402-kaeprovider-ossl3.0-0325.tar.gz || true && hadoop fs -put /usr/lib/jvm/jre-bisheng-jdk8u402-kaeprovider-ossl3.0-0325.tar.gz /zone2 && cat /sys/kernel/debug/hisi_sec2/*/qm/regs | grep QM_DFX_DB_CNT && echo ""; done
 
 在执行这些操作之前和之后，查看加速器硬件寄存器 `QM_DFX_DB_CNT` 值的是否有变化，来判断 UADK 确实被使用。
 
