@@ -35,8 +35,25 @@
 
 重启服务器。检查如下设备存在，则证明加速器硬件启动以及内核模块加载成功。
 
-    # ls /dev/hisi*
-    hisi_hpre-4  hisi_hpre-5  hisi_sec2-1  hisi_sec2-3  hisi_zip-0  hisi_zip-2
+    [root@agent3 ~]# lspci -tv
+        ...
+        +-[0000:74]-+-00.0-[75]----00.0  Huawei Technologies Co., Ltd. HiSilicon ZIP Engine
+        |           +-01.0-[76]----00.0  Huawei Technologies Co., Ltd. HiSilicon SEC Engine
+        ...
+        +-[0000:b4]-+-00.0-[b5]----00.0  Huawei Technologies Co., Ltd. HiSilicon ZIP Engine
+        |           +-01.0-[b6]----00.0  Huawei Technologies Co., Ltd. HiSilicon SEC Engine
+
+
+    depmod -a
+    modprobe uacce
+    modprobe hisi_qm
+    modprobe hisi_zip uacce_mode=1
+    modprobe hisi_sec2 uacce_mode=1
+    modprobe hisi_hpre uacce_mode=1
+    cat /sys/bus/pci/drivers/hisi_sec2/module/parameters/uacce_mode
+        1
+    ls /dev/hisi*
+        hisi_hpre-4  hisi_hpre-5  hisi_sec2-1  hisi_sec2-3  hisi_zip-0  hisi_zip-2
 
 需要将设备属性修改为 `777`，重点是开放设备的读写权限。改变权限的原因是为了确保用户可以有效地访问和使用硬件加速器。硬件加速器通过UADK注册后，在/dev目录中会创建相应的字符设备。为了让用户能够与这些字符设备交互，进行数据读写操作，从而充分利用硬件加速器的功能，需要为用户开放相应的写权限。这样，用户就能向硬件加速器发送命令或数据，实现对硬件加速器资源的有效利用。
 
