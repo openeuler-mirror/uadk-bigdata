@@ -7,7 +7,15 @@
   - [配置环境变量](#配置环境变量)
   - [验证 uadk\_provider](#验证-uadk_provider)
     - [uadk\_provider 能支持的算法有哪些？](#uadk_provider-能支持的算法有哪些)
-  - [场景一：使用 `openssl speed` 验证 SM4-CTR 用 default 还是 uadk\_provier 更快？](#场景一使用-openssl-speed-验证-sm4-ctr-用-default-还是-uadk_provier-更快)
+  - [场景一：使用 `openssl speed` 验证 SM4-CTR 用 default 还是 uadk\_provider 更快？](#场景一使用-openssl-speed-验证-sm4-ctr-用-default-还是-uadk_provider-更快)
+    - [async\_jobs 1](#async_jobs-1)
+    - [async\_jobs 10](#async_jobs-10)
+    - [multi 10](#multi-10)
+    - [multi 10 with two hisi\_sec devices working in parallel](#multi-10-with-two-hisi_sec-devices-working-in-parallel)
+    - [multi 20 with two hisi\_sec devices working in parallel](#multi-20-with-two-hisi_sec-devices-working-in-parallel)
+    - [multi 40 with two hisi\_sec devices working in parallel](#multi-40-with-two-hisi_sec-devices-working-in-parallel)
+    - [multi 60 with two hisi\_sec devices working in parallel](#multi-60-with-two-hisi_sec-devices-working-in-parallel)
+    - [multi 80 with two hisi\_sec devices working in parallel](#multi-80-with-two-hisi_sec-devices-working-in-parallel)
   - [场景二：SM4](#场景二sm4)
 
 本文介绍为 OpenSSL 3.0 开发的多算力平台场景动态负载平衡的测试场景。
@@ -25,7 +33,6 @@ ldprov 提供一个通用的动态负载均衡能力。本文以两个算法在�
     make doc-nits
 
     sudo make -j 100 install
-
 
 ### 使用`pkg-config`验证 OpenSSL 3.0 和 UADK 的安装
 
@@ -104,15 +111,135 @@ ldprov 提供一个通用的动态负载均衡能力。本文以两个算法在�
             IDs: { 1.2.840.113549.1.1.1, 2.5.8.1.1, RSA, rsaEncryption } @ uadk_provider
             IDs: { 1.2.840.113549.1.3.1, DH, dhKeyAgreement } @ uadk_provider
 
-## 场景一：使用 `openssl speed` 验证 SM4-CTR 用 default 还是 uadk_provier 更快？
+## 场景一：使用 `openssl speed` 验证 SM4-CTR 用 default 还是 uadk_provider 更快？
 
-综合测试对比 uadk_provider vs. default:
+综合测试对比 SM4-CTR 算法， uadk_provider vs. default 哪个更快:
 
-    openssl speed -provider uadk_provider -provider default -async_jobs 1 -evp sm4-cbc
-    openssl speed -provider default -async_jobs 1 -evp sm4-cbc
     openssl speed -provider uadk_provider -provider default -async_jobs 1 -evp sm4-ctr
+    cat /sys/kernel/debug/hisi_sec2/*/qm/regs | grep QM_DFX_DB_CNT
     openssl speed -provider default -async_jobs 1 -evp sm4-ctr
+    cat /sys/kernel/debug/hisi_sec2/*/qm/regs | grep QM_DFX_DB_CNT
 
-    TODO：【2023/09】能看出uadk_provider测得的数据, sm4-cbc / sm4-ctr 提高0.6~1倍，在起作用。
+Note: `cat /sys/kernel/debug/hisi_sec2/*/qm/regs | grep QM_DFX_DB_CNT`
+
+### async_jobs 1
+
+    # openssl speed -provider default -async_jobs 1 -evp sm4-ctr
+        Doing SM4-CTR for 3s on 16 size blocks: 6002423 SM4-CTR's in 2.99s
+        Doing SM4-CTR for 3s on 64 size blocks: 5337232 SM4-CTR's in 3.00s
+        Doing SM4-CTR for 3s on 256 size blocks: 2348146 SM4-CTR's in 3.00s
+        Doing SM4-CTR for 3s on 1024 size blocks: 604520 SM4-CTR's in 3.00s
+        Doing SM4-CTR for 3s on 8192 size blocks: 75727 SM4-CTR's in 2.99s
+        Doing SM4-CTR for 3s on 16384 size blocks: 37875 SM4-CTR's in 3.00s
+        version: 3.2.0-dev
+        built on: Sun Mar 24 08:45:29 2024 UTC
+        options: bn(64,64)
+        compiler: gcc -fPIC -pthread -Wa,--noexecstack -Wall -O3 -DOPENSSL_USE_NODELETE -DOPENSSL_PIC -DOPENSSL_BUILDING_OPENSSL -DNDEBUG
+        CPUINFO: OPENSSL_armcap=0xbd
+        The 'numbers' are in 1000s of bytes per second processed.
+        type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes  16384 bytes
+        SM4-CTR          32119.99k   113860.95k   200375.13k   206342.83k   207476.78k   206848.00k
+
+    # openssl speed -provider uadk_provider -provider default -async_jobs 1 -evp sm4-ctr
+        type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes  16384 bytes
+        SM4-CTR           3866.05k    15495.25k    62183.06k   237321.23k   456612.35k   471474.08k
+
+### async_jobs 10
+
+    # openssl speed -provider default -async_jobs 10 -evp sm4-ctr
+        type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes  16384 bytes
+        SM4-CTR          32012.54k   114239.17k   200504.06k   206341.80k   206779.73k   206787.93k
+
+    # openssl speed -provider uadk_provider -provider default -async_jobs 10 -evp sm4-ctr
+        type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes  16384 bytes
+        SM4-CTR           5579.10k    17339.43k    52649.66k   196011.89k  1228592.55k  2281140.00k
+
+### multi 10
+
+    # openssl speed -provider default -multi 10 -seconds 120 -elapsed -evp sm4-ctr
+        type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes  16384 bytes
+        SM4-CTR         319949.11k  1138384.13k  2005259.69k  2062083.75k  2066989.06k  2067649.88k
+        SM4-CTR         319931.07k  1137867.03k  2003471.89k  2061820.07k  2065891.87k  2066369.74k
+
+    # openssl speed -provider uadk_provider -provider default -async_jobs 10 -multi 10 -evp sm4-ctr
+        type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes  16384 bytes
+        SM4-CTR          40662.10k   143187.75k   529901.48k  2818294.78k  3856102.74k  3849431.72k
+
+### multi 10 with two hisi_sec devices working in parallel
+
+    # openssl speed -provider uadk_provider -provider default -multi 10 -seconds 120 -evp sm4-ctr
+        type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes  16384 bytes
+        SM4-CTR          13500.34k    63651.29k   235971.03k   840059.72k  3034632.94k  3739119.34k
+        SM4-CTR          13509.76k    57346.87k   222764.13k   788640.73k  2961521.60k  3670497.28k
+
+    # openssl speed -provider uadk_provider -provider default -multi 10 -seconds 120 -elapsed -evp sm4-ctr
+        type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes  16384 bytes
+        SM4-CTR          17683.47k    63330.66k   241356.35k   839610.06k  3044970.84k  3711369.90k
+        SM4-CTR           4231.23k    47430.67k    76532.02k   599274.04k  2591518.99k  3370097.60k
+        SM4-CTR           4681.11k    42687.71k    78961.14k   578202.55k  2549159.66k  3327796.70k
+
+### multi 20 with two hisi_sec devices working in parallel
+
+    # openssl speed -provider default -multi 20 -seconds 20 -elapsed -evp sm4-ctr
+        SM4-CTR         640019.85k  2276538.37k  4006128.86k  4124605.85k  4133664.36k  4134647.40k
+        SM4-CTR         640069.68k  2274927.57k  4015306.61k  4122030.80k  4132623.56k  4134277.12k
+
+    # openssl speed -provider uadk_provider -provider default -multi 20 -seconds 20 -elapsed -evp sm4-ctr
+        SM4-CTR           7282.07k    60850.00k   149914.38k  1123897.45k  5156714.09k  6561099.68k
+        SM4-CTR           7654.95k    50485.59k   143187.19k  1168020.43k  5131083.37k  6708602.47k
+
+### multi 40 with two hisi_sec devices working in parallel
+
+    # openssl speed -provider default -multi 40 -seconds 20 -elapsed -evp sm4-ctr
+        SM4-CTR        1279971.26k  4552531.43k  8015539.14k  8248040.60k  8265528.52k  8268136.45k
+        SM4-CTR        1279780.41k  4552059.69k  8048823.58k  8005700.04k  7924151.91k  7953707.83k
+
+    # openssl speed -provider uadk_provider -provider default -multi 40 -seconds 20 -elapsed -evp sm4-ctr
+        SM4-CTR          21306.24k    64037.45k   326836.94k  1621123.33k  7629483.40k  7756404.33k
+        SM4-CTR          16398.13k    54053.68k   296889.87k  1859460.35k  7728587.57k  7756309.76k
+        SM4-CTR          19884.44k    64849.51k   339523.41k  1564984.06k  7749677.47k  7756678.76k
+        SM4-CTR          18531.02k    68479.91k   296649.13k  1631692.60k  7745306.62k  7756664.01k
+
+### multi 60 with two hisi_sec devices working in parallel
+
+    # openssl speed -provider default -multi 60 -seconds 20 -elapsed -evp sm4-ctr
+        SM4-CTR        1919873.06k  6828072.19k 11419966.16k 11500206.03k 11561990.55k 11437108.19k
+        SM4-CTR        1919545.31k  6686775.22k 10699080.42k 11070904.01k 11076703.03k 10980688.69k
+
+    # openssl speed -provider uadk_provider -provider default -multi 60 -seconds 20 -elapsed -evp sm4-ctr
+        SM4-CTR          25518.95k    79736.29k   363007.69k  1669525.25k  7752430.39k  7758521.96k
+        SM4-CTR          22312.36k    66975.32k   323648.76k  1253113.96k  7753025.13k  7758765.62k
+        SM4-CTR          23749.19k    73341.22k   364654.96k  1450117.68k  7752751.51k  7758544.69k
+        SM4-CTR          26894.66k    84114.65k   344945.08k  1599865.31k  7753107.87k  7758792.98k
+
+### multi 80 with two hisi_sec devices working in parallel
+
+    # openssl speed -provider default -multi 80 -seconds 20 -elapsed -evp sm4-ctr
+        SM4-CTR        2476187.60k  8013620.59k 12982942.26k 13367193.80k 13421463.70k 13401955.44k
+        SM4-CTR        2440658.92k  7843174.65k 13100002.51k 13239890.89k 13205257.83k 13346893.00k
+
+cpu load average 77%
+
+    # openssl speed -provider uadk_provider -provider default -multi 80 -seconds 20 -elapsed -evp sm4-ctr
+    ... uadk_err:  "do hw ciphers failed. "
+        SM4-CTR          25791.72k    70921.82k   339090.87k  1352893.18k  7751837.70k  7759396.15k
+        SM4-CTR          24297.16k    71918.61k   362315.88k  1366651.08k  7752460.29k  7759238.51k
+
+Note: openssl speed usage,
+
+    -multi num
+        Run multiple operations in parallel.
+
+    -async_jobs num
+        Enable async mode and start specified number of jobs.
+
+    -elapsed
+        When calculating operations- or bytes‐per‐second, use wall‐clock time instead of CPU user time as divisor. It can be useful when testing speed of hardware engines.
+
+    -seconds num
+        Run benchmarks for num seconds.
+
+    -bytes num
+        Run benchmarks on num-byte buffers. Affects ciphers, digests and the CSPRNG.  The limit on the size of the buffer is INT_MAX - 64 bytes, which for a 32-bit int would be 2147483583 bytes.
 
 ## 场景二：SM4
