@@ -1,0 +1,22 @@
+size,presplit,threads,Min Duration (ms),Max Duration (ms),Avg Duration (ms),Avg Latency (us),TPS/QPS (rows/s),Command
+20,30,80,,,,,,hbase pe --nomapred --size=20 --table=test --presplit=30 --compress='GZ' randomWrite 80
+20,30,120,,,,,,hbase pe --nomapred --size=20 --table=test --presplit=30 --compress='GZ' randomWrite 120
+20,30,140,,,,,,hbase pe --nomapred --size=20 --table=test --presplit=30 --compress='GZ' randomWrite 140
+20,30,160,,,,,,hbase pe --nomapred --size=20 --table=test --presplit=30 --compress='GZ' randomWrite 160
+50,30,80,,,,,,hbase pe --nomapred --size=50 --table=test --presplit=30 --compress='GZ' randomWrite 80
+50,30,100,,,,,,hbase pe --nomapred --size=50 --table=test --presplit=30 --compress='GZ' randomWrite 100
+50,30,120,,,,,,hbase pe --nomapred --size=50 --table=test --presplit=30 --compress='GZ' randomWrite 120
+50,30,140,,,,,,hbase pe --nomapred --size=50 --table=test --presplit=30 --compress='GZ' randomWrite 140
+50,30,160,,,,,,hbase pe --nomapred --size=50 --table=test --presplit=30 --compress='GZ' randomWrite 160
+50,60,140,,,,,,hbase pe --nomapred --size=50 --table=test --presplit=60 --compress='GZ' randomWrite 140
+50,60,160,,,,,,hbase pe --nomapred --size=50 --table=test --presplit=60 --compress='GZ' randomWrite 160
+100,30,80,,,,,,hbase pe --nomapred --size=100 --table=test --presplit=30 --compress='GZ' randomWrite 80
+100,30,100,,,,,,hbase pe --nomapred --size=100 --table=test --presplit=30 --compress='GZ' randomWrite 100
+100,30,120,,,,,,hbase pe --nomapred --size=100 --table=test --presplit=30 --compress='GZ' randomWrite 120
+100,30,140,,,,,,hbase pe --nomapred --size=100 --table=test --presplit=30 --compress='GZ' randomWrite 140
+100,30,160,,,,,,hbase pe --nomapred --size=100 --table=test --presplit=30 --compress='GZ' randomWrite 160
+100,60,80,,,,,,hbase pe --nomapred --size=100 --table=test --presplit=60 --compress='GZ' randomWrite 80
+100,60,100,,,,,,hbase pe --nomapred --size=100 --table=test --presplit=60 --compress='GZ' randomWrite 100
+100,60,120,,,,,,hbase pe --nomapred --size=100 --table=test --presplit=60 --compress='GZ' randomWrite 120
+100,60,140,,,,,,hbase pe --nomapred --size=100 --table=test --presplit=60 --compress='GZ' randomWrite 140
+100,60,160,,,,,,hbase pe --nomapred --size=100 --table=test --presplit=60 --compress='GZ' randomWrite 160
