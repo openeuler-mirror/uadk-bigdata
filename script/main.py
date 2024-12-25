@@ -53,6 +53,3 @@ for index, row in df.iterrows():
     # 保存更新后的CSV文件
     df.to_csv(file_path, index=False)
     print(f"Saved updated CSV after command {index + 1} execution.")
-
-import ace_tools as tools; tools.display_dataframe_to_user(name="Updated HbasePeTest Results", dataframe=df)
-
